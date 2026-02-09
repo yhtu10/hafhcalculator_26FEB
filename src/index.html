@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>HafH 訂房比價助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                brand: '#7149CE',
+                brandHighlight: '#885FE6',
+                brandDark: '#342D3E',
+                hafhCoin: '#F0E179',
+                hafhInfo: '#E363BF',
+                hafhDanger: '#F96983',
+                hafhSuccess: '#1DBACE',
+                textBase: '#1A161F',
+                textSub: '#3D3645',
+                textSub2: '#5D5665',
+                bgBase: '#F6F6F8',
+                bgFooter: '#E8E8EC'
+              }
+            }
+          }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F6F6F8; color: #1A161F; -webkit-font-smoothing: antialiased; }
+        .card-shadow { box-shadow: 0 4px 20px -2px rgba(52, 45, 62, 0.1); }
+        input { -webkit-appearance: none; border-radius: 0.75rem; font-size: 16px !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: all 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(10px); }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="safe-area-inset-bottom" @click="handleGlobalClick">
+
+    <div id="app" v-cloak class="max-w-md mx-auto p-4 md:p-10 pb-24 space-y-8">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-end px-1">
+            <div>
+                <h1 class="text-2xl font-black text-brand tracking-tight">HafH 訂房比價助手</h1>
+                <p class="text-[11px] text-textSub font-bold tracking-[0.1em]">SMART TRAVEL TOOL</p>
+            </div>
+            <button @click="resetData" class="text-xs text-textSub font-bold hover:text-hafhDanger transition-colors pb-1">
+                清除資料
+            </button>
+        </header>
+
+        <!-- [區塊 1：成本設定] -->
+        <section class="bg-white rounded-3xl p-6 card-shadow border border-white">
+            <h2 class="text-sm font-bold text-brand mb-4 flex items-center">
+                <span class="bg-bgBase p-1.5 rounded-lg mr-2 text-base">⚙️</span> 成本設定
+            </h2>
+            <div class="space-y-3">
+                <label class="text-[15px] text-textBase font-bold leading-relaxed block">
+                    每枚 HafH Coins 成本
+                    <span class="text-textSub block text-[13px] mt-1 font-medium">
+                        (預設 7.05 為 HafH 官網預設月費成本，<br>如有自行記帳可輸入個人化成本)
+                    </span>
+                </label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-textSub font-bold">$</span>
+                    <input type="number" step="0.01" v-model="state.coinUnitCost" 
+                        class="w-full border-2 border-bgBase bg-bgBase rounded-xl pl-8 pr-4 py-3 focus:bg-white focus:border-brand focus:outline-none transition-all font-black text-textBase">
+                </div>
+            </div>
+        </section>
+
+        <!-- [區塊 2：HafH 資訊] -->
+        <section class="bg-white rounded-3xl p-6 card-shadow border border-white space-y-5">
+            <h2 class="text-sm font-bold text-brand flex items-center">
+                <span class="bg-bgBase p-1.5 rounded-lg mr-2 text-base">🏨</span> HafH 資訊
+            </h2>
+            <div class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-[13px] text-textSub font-bold ml-1">旅宿名稱</label>
+                    <input type="text" v-model="state.hotelName" placeholder="例如：Ace Hotel Kyoto"
+                        class="w-full border-2 border-bgBase bg-bgBase rounded-xl px-4 py-3 focus:bg-white focus:border-brand focus:outline-none transition-all font-bold text-brand">
+                </div>
+                
+                <div class="space-y-1.5">
+                    <label class="text-[13px] text-textSub font-bold ml-1">入住與退房日期</label>
+                    <div @click.stop="showCalendar = true" 
+                         class="w-full border-2 border-bgBase bg-bgBase rounded-xl px-4 py-3 font-bold text-sm cursor-pointer flex justify-between items-center active:scale-[0.98] transition-all">
+                        <span :class="state.startDate ? 'text-textBase' : 'text-textSub2'">
+                            {{ dateRangeText }}
+                        </span>
+                        <span class="text-brand">📅</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5 pt-2">
+                    <label class="text-[13px] text-brand font-bold ml-1 block text-sm">顯示之 HafH Coins</label>
+                    <input type="number" v-model="state.displayCoins" placeholder="0"
+                        class="w-full border-2 border-[#E8E8EC] bg-[#F6F6F8] rounded-xl px-3 py-3 focus:bg-white focus:border-brand focus:outline-none transition-all font-black text-brand text-center text-xl">
+                    <p class="text-[11px] text-brandHighlight font-bold mt-2 ml-1 p-2 bg-brand/5 rounded-lg leading-relaxed">
+                        💡 提醒：如有 VIP 身份請登入後直接輸入顯示的優惠價格
+                    </p>
+                </div>
+            </div>
+            
+            <div class="space-y-4 pt-4 border-t border-dashed border-bgFooter">
+                <a :href="googleSearchUrl" target="_blank" rel="noopener noreferrer"
+                    class="w-full bg-brand text-white py-4 rounded-2xl font-black hover:bg-brandHighlight transition-all flex items-center justify-center gap-2 text-sm shadow-md active:scale-95 no-underline">
+                    🔍 去 Google 搜尋其他網站資料
+                </a>
+                
+                <div class="bg-bgBase rounded-2xl p-4 border border-slate-100">
+                    <div class="flex items-center text-textSub font-bold text-[11px] mb-2">
+                        <span class="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200 mr-2 font-black italic tracking-tighter">💡 比價提醒</span>
+                    </div>
+                    <p class="text-[12px] text-textBase font-medium leading-[1.6]">
+                        請留意搜尋結果與 HafH 提供的條件相符或近似：<br>
+                        1. <span class="text-brand font-bold">可入住前一日免費取消</span><br>
+                        2. <span class="text-brand font-bold">房型為雙床或是一大床</span> 等條件
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- [區塊 3：多來源比價] -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center px-1">
+                <h2 class="text-sm font-bold text-brand flex items-center">
+                    <span class="bg-white p-1.5 rounded-lg mr-2 text-base shadow-sm">💰</span> 其他網站房價
+                </h2>
+                <span class="text-[10px] text-textSub font-bold tracking-tight">💡 來源名稱可自行更改</span>
+            </div>
+            
+            <transition-group name="fade" tag="div" class="space-y-4">
+                <div v-for="(source, index) in state.cashSources" :key="source.id" 
+                     class="bg-white rounded-3xl p-5 card-shadow border-2 transition-all relative"
+                     :class="isLowest(source.price) ? 'border-hafhSuccess/40' : 'border-transparent'">
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <input type="text" v-model="source.name" placeholder="輸入來源名稱"
+                               class="text-sm font-black text-brand bg-bgBase px-3 py-2 rounded-xl border-none focus:ring-2 focus:ring-brand outline-none w-2/3">
+                        <button @click="removeSource(index)" class="text-hafhDanger/40 p-2 hover:text-hafhDanger transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="relative mb-4">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xs text-textSub2 font-black">TWD</span>
+                        <input type="number" v-model="source.price" placeholder="輸入總額"
+                               class="w-full border-2 border-bgBase bg-bgBase rounded-xl pl-14 pr-4 py-3 font-black text-xl focus:bg-white focus:border-brand outline-none transition-all">
+                    </div>
+
+                    <div class="bg-bgBase/50 rounded-2xl p-4 space-y-3">
+                        <div class="flex items-center text-[11px] text-textSub font-bold">🕒 免費取消期限 (二擇一)</div>
+                        <div class="grid grid-cols-2 gap-3 items-center">
+                            <input type="date" v-model="source.deadlineDate" @input="calcDaysFromDate(index)"
+                                   class="text-[11px] bg-white rounded-lg p-3 font-bold border-none outline-none focus:ring-1 focus:ring-brand">
+                            <div class="relative">
+                                <input type="number" v-model="source.daysBefore" @input="calcDateFromDays(index)"
+                                       class="w-full text-[11px] bg-white rounded-lg p-3 pr-8 font-bold border-none outline-none text-center focus:ring-1 focus:ring-brand" placeholder="幾">
+                                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-textSub2 font-bold">天前</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="isLowest(source.price) && source.price > 0" 
+                         class="absolute top-0 right-0 bg-hafhSuccess text-white text-[9px] px-3 py-1 font-black rounded-bl-xl shadow-sm tracking-widest">
+                        LOWEST
+                    </div>
+                </div>
+            </transition-group>
+
+            <button @click="addSource" 
+                    class="w-full py-4 border-2 border-dashed border-brand/30 rounded-3xl text-brand font-black text-sm hover:bg-brand/5 hover:border-brand transition-all flex items-center justify-center gap-2">
+                <span>＋</span> 新增比價來源
+            </button>
+        </section>
+
+        <!-- [區塊 4：計算結果] -->
+        <section v-if="state.displayCoins" class="bg-white rounded-[2.5rem] p-6 card-shadow border border-white space-y-6">
+            <div class="grid grid-cols-2 gap-4 text-center">
+                <!-- 修正後：HafH 成本小卡 -->
+                <div class="p-4 bg-brand/5 rounded-3xl border border-brand/10">
+                    <div class="text-[10px] text-brand font-black mb-0.5 tracking-wider">HafH 成本</div>
+                    <div class="text-[9px] text-brand font-bold mb-1 opacity-70 italic">可前一日免費取消</div>
+                    <div class="text-xl font-black text-textBase">${{ hafhTotalCost.toLocaleString() }}</div>
+                </div>
+                <!-- 其他網站小卡 -->
+                <div class="p-4 bg-bgBase rounded-3xl flex flex-col justify-center">
+                    <div class="text-[10px] text-textSub font-bold mb-1 tracking-wider uppercase">最低價網站</div>
+                    <div class="text-xl font-black text-textBase">
+                        {{ lowestSource ? '$' + lowestSource.price.toLocaleString() : '---' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 動態結果卡片 -->
+            <div :class="isHafhBetter ? 'bg-[#F0FDF4] border-hafhSuccess' : 'bg-[#FFF1F2] border-hafhDanger'"
+                 class="rounded-[2.5rem] p-8 border-2 text-center transition-all shadow-inner">
+                
+                <div v-if="isHafhBetter">
+                    <div class="text-xs font-bold text-hafhSuccess mb-2 uppercase tracking-widest">使用 HafH 訂房省下</div>
+                    <div class="text-5xl font-black text-hafhSuccess mb-6 tracking-tighter">${{ Math.abs(savings).toLocaleString() }}</div>
+                    <div class="bg-hafhSuccess text-white px-8 py-3 rounded-full text-sm font-black shadow-md inline-block">
+                        HafH 比較划算 🚀 現在可以放心先按下送出來卡房間！
+                    </div>
+                </div>
+                
+                <div v-else-if="lowestSource">
+                    <div class="text-xs font-bold text-hafhDanger mb-1 uppercase tracking-widest">
+                        在 {{ lowestSource.name }} 訂房較划算，省下
+                    </div>
+                    <div class="text-5xl font-black text-hafhDanger mb-4 tracking-tighter">${{ Math.abs(savings).toLocaleString() }}</div>
+                    
+                    <div class="space-y-4">
+                        <p class="text-[12px] text-hafhDanger font-bold leading-relaxed px-2">
+                            該網站免費取消期限為：<br>
+                            <span class="text-base font-black underline decoration-2">
+                                {{ lowestSource.deadlineDate || '未填日期' }} 
+                                {{ lowestSource.daysBefore ? `(${lowestSource.daysBefore} 天前)` : '' }}
+                            </span><br>
+                            請確認是否像 HafH 一樣可以前一天免費取消，享有最大的彈性安排。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 重要提醒區塊 -->
+            <div class="bg-[#FFFBEB] border border-hafhCoin rounded-3xl p-6 space-y-4">
+                <div class="flex items-center text-[#92400E] font-black text-sm">
+                    <span class="mr-2 text-xl">⚠️</span> 重要提醒
+                </div>
+                <div class="text-[12px] text-[#92400E] space-y-4 font-medium leading-relaxed">
+                    <p>
+                        <b>HafH 訂單：</b><br>
+                        通常可在入住前一天 <span class="text-hafhDanger font-black">23:59 JST (日本標準時間)</span> 前於系統免費取消，獲得全額 HafH Coins 退還。
+                    </p>
+                    <p>
+                        <b>一般訂房網站：</b><br>
+                        需留意不可退款或需提前數日取消之規定。<br>
+                        若為國外網站，即便標註可免費取消，仍需注意「<span class="underline">取消時的幣值匯差</span>」以及「<span class="underline">金融機構海外交易手續費</span>」可能無法退回。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- [日曆彈窗] -->
+        <transition name="fade">
+            <div v-if="showCalendar" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                <div class="absolute inset-0 bg-brandDark/70 backdrop-blur-md" @click="showCalendar = false"></div>
+                <div class="relative bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                    <div class="p-5 border-b flex justify-between items-center bg-white sticky top-0 z-20">
+                        <h3 class="font-black text-brand">選擇日期範圍</h3>
+                        <button @click="showCalendar = false" class="text-textSub font-bold text-xl p-2">✕</button>
+                    </div>
+                    
+                    <div class="overflow-y-auto p-5 space-y-8 bg-white no-scrollbar">
+                        <div v-for="month in calendarMonths" :key="month.id">
+                            <div class="text-center font-black text-textBase mb-4">{{ month.name }}</div>
+                            <div class="grid grid-cols-7 text-center text-[10px] text-textSub font-bold mb-3">
+                                <div class="text-hafhDanger">日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-brand">六</div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-y-2">
+                                <div v-for="empty in month.padding" :key="'e'+empty"></div>
+                                <div v-for="day in month.days" :key="day.full" 
+                                     @click="handleDateClick(day.full)"
+                                     class="relative py-3 text-sm font-bold transition-all cursor-pointer flex items-center justify-center"
+                                     :class="getDateClass(day.full)">
+                                    {{ day.num }}
+                                    <div v-if="day.full === state.startDate || day.full === state.endDate" 
+                                         class="absolute inset-0 border-2 border-brand rounded-xl z-10 pointer-events-none"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 bg-slate-50 border-t grid grid-cols-2 gap-4">
+                        <div class="flex flex-col justify-center">
+                            <span class="text-brand font-black text-2xl leading-none">{{ nights }} 晚</span>
+                            <span class="text-[10px] text-textSub font-bold mt-1 tracking-tighter italic text-brandHighlight">點第 3 次將重設起日</span>
+                        </div>
+                        <button @click="showCalendar = false" class="bg-brand text-white py-4 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-transform">
+                            確認日期
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <footer class="text-center text-textSub text-[11px] font-bold tracking-wide py-10 opacity-60">
+            HafH 個人小工具 by @yhtu_
+        </footer>
+
+    </div>
+
+    <script>
+        const { createApp, reactive, computed, watch, onMounted, ref } = Vue;
+
+        createApp({
+            setup() {
+                const showCalendar = ref(false);
+                const initialState = {
+                    coinUnitCost: 7.05,
+                    hotelName: "",
+                    startDate: "",
+                    endDate: "",
+                    displayCoins: null,
+                    cashSources: [
+                        { id: 1, name: "官方網站", price: null, deadlineDate: "", daysBefore: null },
+                        { id: 2, name: "Agoda", price: null, deadlineDate: "", daysBefore: null }
+                    ]
+                };
+
+                const state = reactive(JSON.parse(JSON.stringify(initialState)));
+
+                onMounted(() => {
+                    const saved = localStorage.getItem('hafh_smart_v11');
+                    if (saved) Object.assign(state, JSON.parse(saved));
+                });
+
+                watch(state, (newVal) => {
+                    localStorage.setItem('hafh_smart_v11', JSON.stringify(newVal));
+                }, { deep: true });
+
+                const handleGlobalClick = (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        document.activeElement.blur();
+                    }
+                };
+
+                const addSource = () => {
+                    state.cashSources.push({ id: Date.now(), name: "其他網站", price: null, deadlineDate: "", daysBefore: null });
+                };
+                const removeSource = (idx) => {
+                    if (state.cashSources.length > 1) state.cashSources.splice(idx, 1);
+                };
+
+                const calcDateFromDays = (idx) => {
+                    if (!state.startDate || state.cashSources[idx].daysBefore === null) return;
+                    const d = new Date(state.startDate);
+                    d.setDate(d.getDate() - state.cashSources[idx].daysBefore);
+                    state.cashSources[idx].deadlineDate = d.toISOString().split('T')[0];
+                };
+                const calcDaysFromDate = (idx) => {
+                    if (!state.startDate || !state.cashSources[idx].deadlineDate) return;
+                    const s = new Date(state.startDate);
+                    const d = new Date(state.cashSources[idx].deadlineDate);
+                    const diff = Math.round((s - d) / (1000 * 60 * 60 * 24));
+                    state.cashSources[idx].daysBefore = diff;
+                };
+
+                const dateRangeText = computed(() => {
+                    if (!state.startDate) return "選擇日期範圍";
+                    if (!state.endDate) return `${state.startDate} → 點選退房`;
+                    return `${state.startDate} → ${state.endDate} (${nights.value} 晚)`;
+                });
+                const nights = computed(() => {
+                    if (!state.startDate || !state.endDate) return 0;
+                    const s = new Date(state.startDate); const e = new Date(state.endDate);
+                    return Math.max(0, Math.round((e - s) / (1000 * 60 * 60 * 24)));
+                });
+                const handleDateClick = (dateStr) => {
+                    if (!state.startDate || (state.startDate && state.endDate)) {
+                        state.startDate = dateStr; state.endDate = "";
+                    } else {
+                        const s = new Date(state.startDate); const n = new Date(dateStr);
+                        if (n > s) state.endDate = dateStr; else { state.startDate = dateStr; state.endDate = ""; }
+                    }
+                };
+                const getDateClass = (dateStr) => {
+                    if (dateStr === state.startDate || dateStr === state.endDate) return 'bg-brand text-white rounded-xl shadow-lg';
+                    if (state.startDate && state.endDate && dateStr > state.startDate && dateStr < state.endDate) return 'bg-brand/10 text-brand';
+                    return 'text-textBase hover:bg-bgBase';
+                };
+                const calendarMonths = computed(() => {
+                    const months = []; const now = new Date();
+                    for (let i = 0; i < 8; i++) {
+                        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                        const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                        const days = [];
+                        for (let j = 1; j <= daysInMonth; j++) {
+                            days.push({ num: j, full: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}` });
+                        }
+                        months.push({ id: i, name: `${d.getFullYear()}年 ${d.getMonth() + 1}月`, padding: d.getDay(), days });
+                    }
+                    return months;
+                });
+
+                const lowestSource = computed(() => {
+                    const valid = state.cashSources.filter(s => s.price > 0);
+                    return valid.length ? valid.reduce((a, b) => a.price < b.price ? a : b) : null;
+                });
+                const isLowest = (p) => p > 0 && p === lowestSource.value?.price;
+                const hafhTotalCost = computed(() => Math.round((state.displayCoins || 0) * state.coinUnitCost));
+                const savings = computed(() => (lowestSource.value?.price || 0) - hafhTotalCost.value);
+                const isHafhBetter = computed(() => savings.value > 0);
+
+                const googleSearchUrl = computed(() => {
+                    const q = encodeURIComponent(`${state.hotelName} ${state.startDate || ""} 訂房`);
+                    return `https://www.google.com/search?q=${q}`;
+                });
+
+                const resetData = () => {
+                    if(confirm("確定要重置資料嗎？")) {
+                        Object.assign(state, JSON.parse(JSON.stringify(initialState)));
+                        localStorage.removeItem('hafh_smart_v11');
+                    }
+                };
+
+                return {
+                    state, showCalendar, calendarMonths, dateRangeText, nights,
+                    handleDateClick, getDateClass, lowestSource, hafhTotalCost,
+                    savings, isHafhBetter, googleSearchUrl, isLowest, resetData,
+                    handleGlobalClick, calcDateFromDays, calcDaysFromDate, addSource, removeSource
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>HafH 訂房比價助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                brand: '#7149CE',
+                brandHighlight: '#885FE6',
+                brandDark: '#342D3E',
+                hafhCoin: '#F0E179',
+                hafhInfo: '#E363BF',
+                hafhDanger: '#F96983',
+                hafhSuccess: '#1DBACE',
+                textBase: '#1A161F',
+                textSub: '#3D3645',
+                textSub2: '#5D5665',
+                bgBase: '#F6F6F8',
+                bgFooter: '#E8E8EC'
+              }
+            }
+          }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F6F6F8; color: #1A161F; -webkit-font-smoothing: antialiased; }
+        .card-shadow { box-shadow: 0 4px 20px -2px rgba(52, 45, 62, 0.1); }
+        input { -webkit-appearance: none; border-radius: 0.75rem; font-size: 16px !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: all 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(10px); }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="safe-area-inset-bottom" @click="handleGlobalClick">
+
+    <div id="app" v-cloak class="max-w-md mx-auto p-4 md:p-10 pb-24 space-y-8">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-end px-1">
+            <div>
+                <h1 class="text-2xl font-black text-brand tracking-tight">HafH 訂房比價助手</h1>
+                <p class="text-[11px] text-textSub font-bold tracking-[0.1em]">SMART TRAVEL TOOL</p>
+            </div>
+            <button @click="resetData" class="text-xs text-textSub font-bold hover:text-hafhDanger transition-colors pb-1">
+                清除資料
+            </button>
+        </header>
+
+        <!-- [區塊 1：成本設定] -->
+        <section class="bg-white rounded-3xl p-6 card-shadow border border-white">
+            <h2 class="text-sm font-bold text-brand mb-4 flex items-center">
+                <span class="bg-bgBase p-1.5 rounded-lg mr-2 text-base">⚙️</span> 成本設定
+            </h2>
+            <div class="space-y-3">
+                <label class="text-[15px] text-textBase font-bold leading-relaxed block">
+                    每枚 HafH Coins 成本
+                    <span class="text-textSub block text-[13px] mt-1 font-medium">
+                        (預設 7.05 為 HafH 官網預設月費成本，<br>如有自行記帳可輸入個人化成本)
+                    </span>
+                </label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-textSub font-bold">$</span>
+                    <input type="number" step="0.01" v-model="state.coinUnitCost" 
+                        class="w-full border-2 border-bgBase bg-bgBase rounded-xl pl-8 pr-4 py-3 focus:bg-white focus:border-brand focus:outline-none transition-all font-black text-textBase">
+                </div>
+            </div>
+        </section>
+
+        <!-- [區塊 2：HafH 資訊] -->
+        <section class="bg-white rounded-3xl p-6 card-shadow border border-white space-y-5">
+            <h2 class="text-sm font-bold text-brand flex items-center">
+                <span class="bg-bgBase p-1.5 rounded-lg mr-2 text-base">🏨</span> HafH 資訊
+            </h2>
+            <div class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-[13px] text-textSub font-bold ml-1">旅宿名稱</label>
+                    <input type="text" v-model="state.hotelName" placeholder="例如：Ace Hotel Kyoto"
+                        class="w-full border-2 border-bgBase bg-bgBase rounded-xl px-4 py-3 focus:bg-white focus:border-brand focus:outline-none transition-all font-bold text-brand">
+                </div>
+                
+                <div class="space-y-1.5">
+                    <label class="text-[13px] text-textSub font-bold ml-1">入住與退房日期</label>
+                    <div @click.stop="showCalendar = true" 
+                         class="w-full border-2 border-bgBase bg-bgBase rounded-xl px-4 py-3 font-bold text-sm cursor-pointer flex justify-between items-center active:scale-[0.98] transition-all">
+                        <span :class="state.startDate ? 'text-textBase' : 'text-textSub2'">
+                            {{ dateRangeText }}
+                        </span>
+                        <span class="text-brand">📅</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5 pt-2">
+                    <label class="text-[13px] text-brand font-bold ml-1 block text-sm">顯示之 HafH Coins</label>
+                    <input type="number" v-model="state.displayCoins" placeholder="0"
+                        class="w-full border-2 border-[#E8E8EC] bg-[#F6F6F8] rounded-xl px-3 py-3 focus:bg-white focus:border-brand focus:outline-none transition-all font-black text-brand text-center text-xl">
+                    <p class="text-[11px] text-brandHighlight font-bold mt-2 ml-1 p-2 bg-brand/5 rounded-lg leading-relaxed">
+                        💡 提醒：如有 VIP 身份請登入後直接輸入顯示的優惠價格
+                    </p>
+                </div>
+            </div>
+            
+            <div class="space-y-4 pt-4 border-t border-dashed border-bgFooter">
+                <a :href="googleSearchUrl" target="_blank" rel="noopener noreferrer"
+                    class="w-full bg-brand text-white py-4 rounded-2xl font-black hover:bg-brandHighlight transition-all flex items-center justify-center gap-2 text-sm shadow-md active:scale-95 no-underline">
+                    🔍 去 Google 搜尋其他網站資料
+                </a>
+                
+                <div class="bg-bgBase rounded-2xl p-4 border border-slate-100">
+                    <div class="flex items-center text-textSub font-bold text-[11px] mb-2">
+                        <span class="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200 mr-2 font-black italic tracking-tighter">💡 比價提醒</span>
+                    </div>
+                    <p class="text-[12px] text-textBase font-medium leading-[1.6]">
+                        請留意搜尋結果與 HafH 提供的條件相符或近似：<br>
+                        1. <span class="text-brand font-bold">可入住前一日免費取消</span><br>
+                        2. <span class="text-brand font-bold">房型為雙床或是一大床</span> 等條件
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- [區塊 3：多來源比價] -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center px-1">
+                <h2 class="text-sm font-bold text-brand flex items-center">
+                    <span class="bg-white p-1.5 rounded-lg mr-2 text-base shadow-sm">💰</span> 其他網站房價
+                </h2>
+                <span class="text-[10px] text-textSub font-bold tracking-tight">💡 來源名稱可自行更改</span>
+            </div>
+            
+            <transition-group name="fade" tag="div" class="space-y-4">
+                <div v-for="(source, index) in state.cashSources" :key="source.id" 
+                     class="bg-white rounded-3xl p-5 card-shadow border-2 transition-all relative"
+                     :class="isLowest(source.price) ? 'border-hafhSuccess/40' : 'border-transparent'">
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <input type="text" v-model="source.name" placeholder="輸入來源名稱"
+                               class="text-sm font-black text-brand bg-bgBase px-3 py-2 rounded-xl border-none focus:ring-2 focus:ring-brand outline-none w-2/3">
+                        <button @click="removeSource(index)" class="text-hafhDanger/40 p-2 hover:text-hafhDanger transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="relative mb-4">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xs text-textSub2 font-black">TWD</span>
+                        <input type="number" v-model="source.price" placeholder="輸入總額"
+                               class="w-full border-2 border-bgBase bg-bgBase rounded-xl pl-14 pr-4 py-3 font-black text-xl focus:bg-white focus:border-brand outline-none transition-all">
+                    </div>
+
+                    <div class="bg-bgBase/50 rounded-2xl p-4 space-y-3">
+                        <div class="flex items-center text-[11px] text-textSub font-bold">🕒 免費取消期限 (二擇一)</div>
+                        <div class="grid grid-cols-2 gap-3 items-center">
+                            <input type="date" v-model="source.deadlineDate" @input="calcDaysFromDate(index)"
+                                   class="text-[11px] bg-white rounded-lg p-3 font-bold border-none outline-none focus:ring-1 focus:ring-brand">
+                            <div class="relative">
+                                <input type="number" v-model="source.daysBefore" @input="calcDateFromDays(index)"
+                                       class="w-full text-[11px] bg-white rounded-lg p-3 pr-8 font-bold border-none outline-none text-center focus:ring-1 focus:ring-brand" placeholder="幾">
+                                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-textSub2 font-bold">天前</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="isLowest(source.price) && source.price > 0" 
+                         class="absolute top-0 right-0 bg-hafhSuccess text-white text-[9px] px-3 py-1 font-black rounded-bl-xl shadow-sm tracking-widest">
+                        LOWEST
+                    </div>
+                </div>
+            </transition-group>
+
+            <button @click="addSource" 
+                    class="w-full py-4 border-2 border-dashed border-brand/30 rounded-3xl text-brand font-black text-sm hover:bg-brand/5 hover:border-brand transition-all flex items-center justify-center gap-2">
+                <span>＋</span> 新增比價來源
+            </button>
+        </section>
+
+        <!-- [區塊 4：計算結果] -->
+        <section v-if="state.displayCoins" class="bg-white rounded-[2.5rem] p-6 card-shadow border border-white space-y-6">
+            <div class="grid grid-cols-2 gap-4 text-center">
+                <div class="p-4 bg-brand/5 rounded-3xl border border-brand/10">
+                    <div class="text-[10px] text-brand font-black mb-1 tracking-wider uppercase">HafH 成本</div>
+                    <div class="text-xl font-black text-textBase">${{ hafhTotalCost.toLocaleString() }}</div>
+                </div>
+                <div class="p-4 bg-bgBase rounded-3xl">
+                    <div class="text-[10px] text-textSub font-bold mb-1 tracking-wider uppercase">最低價網站</div>
+                    <div class="text-xl font-black text-textBase">
+                        {{ lowestSource ? '$' + lowestSource.price.toLocaleString() : '---' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 動態結果卡片 -->
+            <div :class="isHafhBetter ? 'bg-[#F0FDF4] border-hafhSuccess' : 'bg-[#FFF1F2] border-hafhDanger'"
+                 class="rounded-[2.5rem] p-8 border-2 text-center transition-all shadow-inner">
+                
+                <!-- 文字判斷 -->
+                <div v-if="isHafhBetter">
+                    <div class="text-xs font-bold text-hafhSuccess mb-2 uppercase tracking-widest">使用 HafH 訂房省下</div>
+                    <div class="text-5xl font-black text-hafhSuccess mb-6 tracking-tighter">${{ Math.abs(savings).toLocaleString() }}</div>
+                    <div class="bg-hafhSuccess text-white px-8 py-3 rounded-full text-sm font-black shadow-md inline-block">
+                        HafH 比較划算 🚀 現在可以放心先按下送出來卡房間！
+                    </div>
+                </div>
+                
+                <div v-else-if="lowestSource">
+                    <div class="text-xs font-bold text-hafhDanger mb-1 uppercase tracking-widest">
+                        在 {{ lowestSource.name }} 訂房較划算，省下
+                    </div>
+                    <div class="text-5xl font-black text-hafhDanger mb-4 tracking-tighter">${{ Math.abs(savings).toLocaleString() }}</div>
+                    
+                    <div class="space-y-4">
+                        <p class="text-[12px] text-hafhDanger font-bold leading-relaxed px-2">
+                            該網站免費取消期限為：<br>
+                            <span class="text-base font-black underline decoration-2">
+                                {{ lowestSource.deadlineDate || '未填日期' }} 
+                                {{ lowestSource.daysBefore ? `(${lowestSource.daysBefore} 天前)` : '' }}
+                            </span><br>
+                            請確認是否像 HafH 一樣可以前一天免費取消，享有最大的彈性安排。
+                        </p>
+                        <div class="bg-white/50 border border-hafhDanger/20 rounded-2xl p-3 text-xs font-bold text-hafhDanger">
+                            HafH 可以在前一天取消且價格為 ${{ hafhTotalCost.toLocaleString() }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 重要提醒區塊 -->
+            <div class="bg-[#FFFBEB] border border-hafhCoin rounded-3xl p-6 space-y-4">
+                <div class="flex items-center text-[#92400E] font-black text-sm">
+                    <span class="mr-2 text-xl">⚠️</span> 重要提醒
+                </div>
+                <div class="text-[12px] text-[#92400E] space-y-4 font-medium leading-relaxed">
+                    <p>
+                        <b>HafH 訂單：</b><br>
+                        通常可在入住前一天 <span class="text-hafhDanger font-black">23:59 JST (日本標準時間)</span> 前於系統免費取消，獲得全額 HafH Coins 退還。
+                    </p>
+                    <p>
+                        <b>一般訂房網站：</b><br>
+                        需留意不可退款或需提前數日取消之規定。<br>
+                        若為國外網站，即便標註可免費取消，仍需注意「<span class="underline">取消時的幣值匯差</span>」以及「<span class="underline">金融機構海外交易手續費</span>」可能無法退回。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- [日曆彈窗] -->
+        <transition name="fade">
+            <div v-if="showCalendar" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                <div class="absolute inset-0 bg-brandDark/70 backdrop-blur-md" @click="showCalendar = false"></div>
+                <div class="relative bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                    <div class="p-5 border-b flex justify-between items-center bg-white sticky top-0 z-20">
+                        <h3 class="font-black text-brand">選擇日期範圍</h3>
+                        <button @click="showCalendar = false" class="text-textSub font-bold text-xl p-2">✕</button>
+                    </div>
+                    
+                    <div class="overflow-y-auto p-5 space-y-8 bg-white no-scrollbar">
+                        <div v-for="month in calendarMonths" :key="month.id">
+                            <div class="text-center font-black text-textBase mb-4">{{ month.name }}</div>
+                            <div class="grid grid-cols-7 text-center text-[10px] text-textSub font-bold mb-3">
+                                <div class="text-hafhDanger">日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-brand">六</div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-y-2">
+                                <div v-for="empty in month.padding" :key="'e'+empty"></div>
+                                <div v-for="day in month.days" :key="day.full" 
+                                     @click="handleDateClick(day.full)"
+                                     class="relative py-3 text-sm font-bold transition-all cursor-pointer flex items-center justify-center"
+                                     :class="getDateClass(day.full)">
+                                    {{ day.num }}
+                                    <div v-if="day.full === state.startDate || day.full === state.endDate" 
+                                         class="absolute inset-0 border-2 border-brand rounded-xl z-10 pointer-events-none"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 bg-slate-50 border-t grid grid-cols-2 gap-4">
+                        <div class="flex flex-col justify-center">
+                            <span class="text-brand font-black text-2xl leading-none">{{ nights }} 晚</span>
+                            <span class="text-[10px] text-textSub font-bold mt-1 tracking-tighter italic text-brandHighlight">點第 3 次將重設起日</span>
+                        </div>
+                        <button @click="showCalendar = false" class="bg-brand text-white py-4 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-transform">
+                            確認日期
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <footer class="text-center text-textSub text-[11px] font-bold tracking-wide py-10 opacity-60">
+            HafH 個人小工具 by @yhtu_
+        </footer>
+
+    </div>
+
+    <script>
+        const { createApp, reactive, computed, watch, onMounted, ref } = Vue;
+
+        createApp({
+            setup() {
+                const showCalendar = ref(false);
+                const initialState = {
+                    coinUnitCost: 7.05,
+                    hotelName: "",
+                    startDate: "",
+                    endDate: "",
+                    displayCoins: null,
+                    cashSources: [
+                        { id: 1, name: "官方網站", price: null, deadlineDate: "", daysBefore: null },
+                        { id: 2, name: "Agoda", price: null, deadlineDate: "", daysBefore: null }
+                    ]
+                };
+
+                const state = reactive(JSON.parse(JSON.stringify(initialState)));
+
+                onMounted(() => {
+                    const saved = localStorage.getItem('hafh_smart_v10');
+                    if (saved) Object.assign(state, JSON.parse(saved));
+                });
+
+                watch(state, (newVal) => {
+                    localStorage.setItem('hafh_smart_v10', JSON.stringify(newVal));
+                }, { deep: true });
+
+                const handleGlobalClick = (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        document.activeElement.blur();
+                    }
+                };
+
+                const addSource = () => {
+                    state.cashSources.push({ id: Date.now(), name: "其他網站", price: null, deadlineDate: "", daysBefore: null });
+                };
+                const removeSource = (idx) => {
+                    if (state.cashSources.length > 1) state.cashSources.splice(idx, 1);
+                };
+
+                const calcDateFromDays = (idx) => {
+                    if (!state.startDate || state.cashSources[idx].daysBefore === null) return;
+                    const d = new Date(state.startDate);
+                    d.setDate(d.getDate() - state.cashSources[idx].daysBefore);
+                    state.cashSources[idx].deadlineDate = d.toISOString().split('T')[0];
+                };
+                const calcDaysFromDate = (idx) => {
+                    if (!state.startDate || !state.cashSources[idx].deadlineDate) return;
+                    const s = new Date(state.startDate);
+                    const d = new Date(state.cashSources[idx].deadlineDate);
+                    const diff = Math.round((s - d) / (1000 * 60 * 60 * 24));
+                    state.cashSources[idx].daysBefore = diff;
+                };
+
+                const dateRangeText = computed(() => {
+                    if (!state.startDate) return "選擇日期範圍";
+                    if (!state.endDate) return `${state.startDate} → 點選退房`;
+                    return `${state.startDate} → ${state.endDate} (${nights.value} 晚)`;
+                });
+                const nights = computed(() => {
+                    if (!state.startDate || !state.endDate) return 0;
+                    const s = new Date(state.startDate); const e = new Date(state.endDate);
+                    return Math.max(0, Math.round((e - s) / (1000 * 60 * 60 * 24)));
+                });
+                const handleDateClick = (dateStr) => {
+                    if (!state.startDate || (state.startDate && state.endDate)) {
+                        state.startDate = dateStr; state.endDate = "";
+                    } else {
+                        const s = new Date(state.startDate); const n = new Date(dateStr);
+                        if (n > s) state.endDate = dateStr; else { state.startDate = dateStr; state.endDate = ""; }
+                    }
+                };
+                const getDateClass = (dateStr) => {
+                    if (dateStr === state.startDate || dateStr === state.endDate) return 'bg-brand text-white rounded-xl shadow-lg';
+                    if (state.startDate && state.endDate && dateStr > state.startDate && dateStr < state.endDate) return 'bg-brand/10 text-brand';
+                    return 'text-textBase hover:bg-bgBase';
+                };
+                const calendarMonths = computed(() => {
+                    const months = []; const now = new Date();
+                    for (let i = 0; i < 8; i++) {
+                        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                        const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                        const days = [];
+                        for (let j = 1; j <= daysInMonth; j++) {
+                            days.push({ num: j, full: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}` });
+                        }
+                        months.push({ id: i, name: `${d.getFullYear()}年 ${d.getMonth() + 1}月`, padding: d.getDay(), days });
+                    }
+                    return months;
+                });
+
+                const lowestSource = computed(() => {
+                    const valid = state.cashSources.filter(s => s.price > 0);
+                    return valid.length ? valid.reduce((a, b) => a.price < b.price ? a : b) : null;
+                });
+                const isLowest = (p) => p > 0 && p === lowestSource.value?.price;
+                const hafhTotalCost = computed(() => Math.round((state.displayCoins || 0) * state.coinUnitCost));
+                const savings = computed(() => (lowestSource.value?.price || 0) - hafhTotalCost.value);
+                const isHafhBetter = computed(() => savings.value > 0);
+
+                const googleSearchUrl = computed(() => {
+                    const q = encodeURIComponent(`${state.hotelName} ${state.startDate || ""} 訂房`);
+                    return `https://www.google.com/search?q=${q}`;
+                });
+
+                const resetData = () => {
+                    if(confirm("確定要重置資料嗎？")) {
+                        Object.assign(state, JSON.parse(JSON.stringify(initialState)));
+                        localStorage.removeItem('hafh_smart_v10');
+                    }
+                };
+
+                return {
+                    state, showCalendar, calendarMonths, dateRangeText, nights,
+                    handleDateClick, getDateClass, lowestSource, hafhTotalCost,
+                    savings, isHafhBetter, googleSearchUrl, isLowest, resetData,
+                    handleGlobalClick, calcDateFromDays, calcDaysFromDate, addSource, removeSource
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
